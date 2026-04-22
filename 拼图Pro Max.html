@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>四连方拼图探索 - 三年级数学</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<style>
+*{margin:0;padding:0;font-family:'PingFang SC','Microsoft YaHei','Segoe UI',sans-serif;box-sizing:border-box;}
+:root{
+  --primary:#4361ee;--primary-light:#7b8ff7;--primary-dark:#2d47d6;
+  --accent:#f72585;--success:#06d6a0;--warn:#ffd166;
+  --bg:#f0f4ff;--card:#fff;--shadow:0 4px 20px rgba(67,97,238,0.10);
+  --radius:14px;--radius-sm:10px;
+}
+
+body{
+  background:var(--bg);
+  background-image:
+    radial-gradient(ellipse at 20% 50%,rgba(67,97,238,0.06) 0%,transparent 50%),
+    radial-gradient(ellipse at 80% 20%,rgba(247,37,133,0.05) 0%,transparent 50%);
+  padding:10px;display:flex;gap:14px;height:100vh;overflow:hidden;
+}
+
+/* ---- 顶部栏 ---- */
+.left{flex:1;display:flex;flex-direction:column;min-width:0;}
+.top-bar{display:flex;gap:6px;margin-bottom:8px;align-items:center;flex-wrap:wrap;}
+.top-bar button{
+  padding:7px 14px;border:2px solid var(--primary-light);background:#fff;
+  border-radius:22px;cursor:pointer;font-size:12px;font-weight:600;
+  color:var(--primary);transition:all .25s;letter-spacing:.3px;
+}
+.top-bar button:hover{background:var(--primary);color:#fff;transform:translateY(-1px);box-shadow:0 3px 10px rgba(67,97,238,0.25);}
+.top-bar button:active{transform:scale(0.96);}
+.top-bar button.active{background:var(--primary);color:#fff;border-color:var(--primary);box-shadow:0 3px 10px rgba(67,97,238,0.3);}
+#time{color:var(--accent);font-weight:bold;font-size:13px;margin-left:auto;padding:5px 12px;background:rgba(247,37,133,0.08);border-radius:16px;}
+
+/* ---- 信息条 ---- */
+.info-bar{display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap;}
+.info-tag{
+  background:#fff;border-radius:16px;padding:4px 12px;font-size:11.5px;color:#666;
+  border:1px solid rgba(67,97,238,0.12);transition:all .2s;
+}
+.info-tag b{color:var(--primary);font-weight:700;}
+h2{font-size:16px;color:var(--primary);margin-bottom:5px;display:flex;align-items:center;gap:6px;}
+h2 .badge{font-size:10px;background:var(--accent);color:#fff;padding:2px 8px;border-radius:10px;font-weight:600;}
+
+/* ---- 网格 ---- */
+#grid{
+  display:grid;gap:0;
+  border:3px solid var(--primary-light);background:#fff;
+  position:relative;flex:1;border-radius:8px;overflow:hidden;
+  box-shadow:inset 0 2px 8px rgba(67,97,238,0.06);
+}
+.cell{border:1px solid rgba(67,97,238,0.07);background:#fafbff;transition:background .15s;}
+.cell.yellow{background:rgba(255,209,102,0.25);border-color:rgba(255,209,102,0.4);}
+.cell.highlight{background:rgba(67,97,238,0.12);}
+
+/* ---- 零件 ---- */
+.piece{
+  position:absolute;display:grid;gap:0;cursor:grab;
+  transform-origin:center center;touch-action:manipulation;
+  z-index:1;transition:opacity .15s,filter .15s;
+  filter:drop-shadow(0 1px 3px rgba(0,0,0,0.12));
+}
+.piece.dragging{opacity:0.65;z-index:10;cursor:grabbing;filter:drop-shadow(0 4px 12px rgba(0,0,0,0.2));}
+.piece.ghost{opacity:0.4;pointer-events:none;z-index:5;filter:none;}
+.piece.invalid .box{background:#ef5350 !important;opacity:0.6;}
+.box{border:1px solid rgba(255,255,255,0.35);transition:background .15s;}
+
+@keyframes popIn{0%{transform:scale(0.85);opacity:0.4;}60%{transform:scale(1.04);}100%{transform:scale(1);opacity:1;}}
+.piece.just-placed{animation:popIn .25s ease-out;}
+
+@keyframes pulseGlow{0%,100%{filter:drop-shadow(0 0 0px rgba(6,214,160,0));}50%{filter:drop-shadow(0 0 8px rgba(6,214,160,0.5));}}
+.piece.can-remove{animation:pulseGlow 1.5s infinite;cursor:pointer;}
+
+/* ---- 右侧面板 ---- */
+.right{
+  width:280px;background:#fff;padding:14px;border-radius:var(--radius);
+  box-shadow:var(--shadow);overflow-y:auto;display:flex;flex-direction:column;
+  border:1px solid rgba(67,97,238,0.08);
+}
+.right h3{font-size:14px;color:var(--primary);margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.right h3 .hint{font-size:10px;color:#aaa;font-weight:normal;}
+.list{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+/* 零件卡片 */
+.part-card{
+  background:linear-gradient(135deg,#fafbff,#f5f7ff);
+  border-radius:var(--radius-sm);padding:8px 6px 8px;text-align:center;
+  border:1.5px solid rgba(67,97,238,0.08);
+  transition:all .25s;position:relative;overflow:hidden;
+}
+.part-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:var(--c,var(--primary));opacity:0;transition:opacity .2s;
+}
+.part-card:hover{box-shadow:0 4px 16px rgba(67,97,238,0.12);transform:translateY(-2px);border-color:rgba(67,97,238,0.2);}
+.part-card:hover::before{opacity:1;}
+.part-card .name{font-size:11px;color:#888;margin-bottom:4px;font-weight:500;}
+.part-card .preview-wrap{display:flex;justify-content:center;min-height:50px;align-items:center;}
+.small{display:grid;gap:2px;cursor:grab;touch-action:manipulation;transition:transform .2s;}
+.small:hover{transform:scale(1.1);}
+
+/* 操作按钮 */
+.rot-btns{margin-top:6px;display:flex;gap:6px;justify-content:center;}
+.act-btn{
+  width:30px;height:30px;border:1.5px solid rgba(67,97,238,0.2);background:#fff;
+  border-radius:8px;cursor:pointer;font-size:15px;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .2s;color:var(--primary);
+}
+.act-btn:hover{background:var(--primary);color:#fff;border-color:var(--primary);box-shadow:0 2px 8px rgba(67,97,238,0.3);transform:scale(1.08);}
+.act-btn:active{transform:scale(0.95);}
+.act-btn.mirror{font-size:13px;font-weight:bold;}
+
+.area-label{text-align:center;font-size:11px;color:#999;margin-top:8px;padding:6px;background:rgba(67,97,238,0.04);border-radius:8px;}
+.progress-bar{width:100%;height:6px;background:rgba(67,97,238,0.08);border-radius:3px;margin-top:6px;overflow:hidden;}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--primary),var(--success));border-radius:3px;transition:width .4s cubic-bezier(.4,0,.2,1);}
+
+/* ---- 弹窗 ---- */
+.msg{
+  position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.9);
+  background:#fff;padding:36px 48px;border-radius:20px;
+  box-shadow:0 12px 48px rgba(0,0,0,0.15);text-align:center;z-index:100;
+  display:none;opacity:0;transition:all .3s cubic-bezier(.4,0,.2,1);
+  border:2px solid rgba(67,97,238,0.1);
+}
+.msg.show{display:block;opacity:1;transform:translate(-50%,-50%) scale(1);}
+.msg h2{font-size:24px;color:var(--success);margin-bottom:12px;}
+.msg p{font-size:14px;color:#555;line-height:1.7;}
+.msg .stat{display:inline-block;background:rgba(67,97,238,0.06);padding:3px 10px;border-radius:8px;margin:2px;font-weight:600;color:var(--primary);}
+.msg button{
+  margin-top:16px;padding:10px 32px;border:none;
+  background:linear-gradient(135deg,var(--primary),var(--primary-light));
+  color:#fff;border-radius:22px;font-size:14px;font-weight:600;cursor:pointer;
+  transition:all .2s;box-shadow:0 3px 12px rgba(67,97,238,0.3);
+}
+.msg button:hover{transform:translateY(-1px);box-shadow:0 5px 16px rgba(67,97,238,0.4);}
+
+/* ---- 庆祝彩带 ---- */
+#confetti{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99;}
+.confetti-piece{
+  position:absolute;width:10px;height:10px;top:-10px;
+  animation:confettiFall linear forwards;
+}
+@keyframes confettiFall{
+  0%{transform:translateY(0) rotate(0deg);opacity:1;}
+  100%{transform:translateY(100vh) rotate(720deg);opacity:0;}
+}
+
+/* ---- 操作提示 ---- */
+.tooltip{
+  position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,0.75);color:#fff;padding:8px 18px;
+  border-radius:20px;font-size:12px;z-index:50;
+  opacity:0;transition:opacity .3s;pointer-events:none;
+}
+.tooltip.show{opacity:1;}
+
+/* ---- 最佳记录 ---- */
+.best-time{
+  font-size:11px;color:var(--success);font-weight:600;
+  padding:2px 8px;background:rgba(6,214,160,0.1);border-radius:8px;
+  margin-left:6px;
+}
+
+/* ---- 竖屏 ---- */
+@media (orientation: portrait) {
+  body{flex-direction:column;height:auto;min-height:100vh;overflow-y:auto;padding:8px;}
+  .left{flex:none;}
+  #grid{height:55vw;min-height:220px;}
+  .right{width:100%;flex:none;margin-top:10px;}
+  .list{grid-template-columns:repeat(4,1fr);}
+  .rot-btns{gap:4px;}
+  .act-btn{width:28px;height:28px;font-size:14px;}
+}
+@media (orientation: landscape) {
+  body{flex-direction:row;height:100vh;overflow:hidden;}
+}
+</style>
+</head>
+<body>
+
+<div class="left">
+<div class="top-bar">
+  <button id="b4" class="active">4×4 正方形</button>
+  <button id="b5">5×4 长方形</button>
+  <button id="free">自由拼图</button>
+  <button id="undo">↩ 撤销</button>
+  <button id="clear">🗑 清空</button>
+  <span id="time">⏱ 0秒</span>
+  <span class="best-time" id="bestTime" style="display:none"></span>
+</div>
+<div class="info-bar">
+  <span class="info-tag">🧩 已用零件：<b id="pieceCount">0</b></span>
+  <span class="info-tag">📦 种类：<b id="typeCount">0</b></span>
+  <span class="info-tag">📐 覆盖：<b id="coverCount">0</b>/<b id="totalCells">16</b></span>
+  <span class="info-tag">📊 覆盖率：<b id="coverPct">0%</b></span>
+</div>
+<h2>🧩 四连方拼图探索 <span class="badge">NEW</span></h2>
+<div id="grid"></div>
+<div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+</div>
+
+<div class="right">
+  <h3>📦 零件库 <span class="hint">拖拽放入 · 双击旋转</span></h3>
+  <div class="list" id="parts"></div>
+  <div class="area-label" id="areaLabel">4×4 = 16 格（面积概念）</div>
+</div>
+
+<div class="msg" id="winMsg">
+  <h2>🎉 拼图完成！</h2>
+  <p id="winText"></p>
+  <button onclick="closeMsg('winMsg')">太棒了！</button>
+</div>
+<div class="msg" id="undoMsg">
+  <h2>⚠️ 拼图已完成</h2>
+  <p>已经完成了拼图，不能撤销哦！<br>请重新开始吧 😊</p>
+  <button onclick="closeMsg('undoMsg')">好的</button>
+</div>
+<div class="msg" id="failMsg">
+  <h2>😔 无法拼成</h2>
+  <p>当前布局下，无论使用哪种零件都无法完成拼图了！<br>请点击「撤销」回到上一步，或者「清空」重新开始 🔄</p>
+  <button onclick="closeMsg('failMsg')">我知道了</button>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+<canvas id="confetti"></canvas>
+
+<script>
+/* ===== 9种四连方形状 ===== */
+const DATA = [
+  {s:[[1,1,1,1]],   c:'#4361EE',name:'长条'},
+  {s:[[1,1],[1,0],[1,0]],c:'#F72585',name:'L型'},
+  {s:[[1,1],[1,1]],  c:'#FFD166',name:'方块'},
+  {s:[[1,1,1],[0,0,1]],c:'#FF8C42',name:'J型'},
+  {s:[[1,1,1],[0,1,0]],c:'#AB47BC',name:'T型'},
+  {s:[[0,1],[0,1],[1,1]],c:'#06D6A0',name:'反L'},
+  {s:[[0,1,1],[1,1,0]],c:'#7E57C2',name:'Z型'},
+  {s:[[1,1,0],[0,1,1]],c:'#26A69A',name:'S型'},
+  {s:[[1,0],[1,1],[0,1]],c:'#8D6E63',name:'反Z'}
+];
+
+/* ===== 状态 ===== */
+let size=50, cols=12, rows=10;
+let area=null, history=[], occupied=new Set();
+let start=null, timer=null, over=false, won=false, selecting=false;
+let partRotation = DATA.map(()=>0);
+let partMirrored = DATA.map(()=>false);
+
+const grid = document.getElementById('grid');
+
+/* ===== 网格构建 ===== */
+let _resizeTimer = null;
+function buildGrid(){
+  // Save existing placed pieces before clearing
+  const savedPieces = [];
+  grid.querySelectorAll('.piece').forEach(p => {
+    savedPieces.push({
+      shape: p.dataset.shape,
+      color: p.dataset.color,
+      gx: parseInt(p.style.left) / size,
+      gy: parseInt(p.style.top) / size,
+    });
+  });
+
+  // Save area as-is so pieces and area stay locked together
+  const savedArea = area ? {
+    minX: area.minX, maxX: area.maxX,
+    minY: area.minY, maxY: area.maxY,
+  } : null;
+  const wasSelecting = selecting;
+
+  grid.querySelectorAll('.cell').forEach(c=>c.remove());
+  grid.querySelectorAll('.piece').forEach(p=>p.remove());
+  occupied.clear();
+
+  const rect = grid.getBoundingClientRect();
+  const oldSize = size;
+  cols = Math.max(6, Math.floor(rect.width/30));
+  rows = Math.max(6, Math.floor(rect.height/30));
+  size = Math.floor(Math.min(rect.width/cols, rect.height/rows));
+  grid.style.gridTemplateColumns = `repeat(${cols},${size}px)`;
+  grid.style.gridTemplateRows = `repeat(${rows},${size}px)`;
+  for(let y=0;y<rows;y++) for(let x=0;x<cols;x++){
+    const d = document.createElement('div');
+    d.className='cell'; d.dataset.x=x; d.dataset.y=y;
+    grid.appendChild(d);
+  }
+
+  // Restore area at exact same grid coordinates (not re-centered)
+  if(savedArea && !wasSelecting){
+    // Clamp to new grid bounds if grid shrank
+    const aw = savedArea.maxX - savedArea.minX + 1;
+    const ah = savedArea.maxY - savedArea.minY + 1;
+    area = {
+      minX: Math.max(0, Math.min(savedArea.minX, cols - aw)),
+      maxX: 0,
+      minY: Math.max(0, Math.min(savedArea.minY, rows - ah)),
+      maxY: 0,
+    };
+    area.maxX = area.minX + aw - 1;
+    area.maxY = area.minY + ah - 1;
+  } else if(wasSelecting){
+    area = null;
+  } else {
+    area = {minX:Math.floor(cols/2)-2, maxX:Math.floor(cols/2)+1, minY:Math.floor(rows/2)-2, maxY:Math.floor(rows/2)+1};
+  }
+
+  // Re-add saved pieces with new size
+  savedPieces.forEach(d => {
+    const s = JSON.parse(d.shape);
+    addOcc(d.gx, d.gy, s);
+    const p = makePiece(s, d.color);
+    p.style.left = d.gx * size + 'px';
+    p.style.top = d.gy * size + 'px';
+    grid.appendChild(p);
+    bindPieceDrag(p);
+  });
+
+  showYellow(); updateInfo();
+}
+
+// Debounced resize handler to avoid rapid re-layout during zoom/scroll
+function debouncedBuildGrid(){
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(buildGrid, 150);
+}
+
+window.onload = function(){ buildGrid(); renderParts(); loadBestTime(); };
+window.addEventListener('resize', debouncedBuildGrid);
+
+/* ===== 框选 ===== */
+let selDown=null;
+grid.onmousedown = function(e){
+  if(!selecting||!e.target.classList.contains('cell'))return;
+  selDown={x:+e.target.dataset.x,y:+e.target.dataset.y};
+};
+grid.onmousemove = function(e){
+  if(!selDown||!e.target.classList.contains('cell'))return;
+  selectArea(selDown,{x:+e.target.dataset.x,y:+e.target.dataset.y});
+};
+grid.onmouseup = ()=>{selDown=null;};
+
+grid.addEventListener('touchstart',function(e){
+  if(e.touches.length>1||!selecting||!e.target.classList.contains('cell'))return;
+  selDown={x:+e.target.dataset.x,y:+e.target.dataset.y}; e.preventDefault();
+},{passive:false});
+grid.addEventListener('touchmove',function(e){
+  if(!selDown)return; if(e.touches.length>1){selDown=null;return;}
+  const el=document.elementFromPoint(e.touches[0].clientX,e.touches[0].clientY);
+  if(el&&el.classList.contains('cell'))selectArea(selDown,{x:+el.dataset.x,y:+el.dataset.y});
+  e.preventDefault();
+},{passive:false});
+grid.addEventListener('touchend',()=>{selDown=null;});
+
+function selectArea(p1,p2){
+  const minX=Math.min(p1.x,p2.x),maxX=Math.max(p1.x,p2.x);
+  const minY=Math.min(p1.y,p2.y),maxY=Math.max(p1.y,p2.y);
+  if(maxX-minX+1>=4&&maxY-minY+1>=4){area={minX,maxX,minY,maxY};showYellow();updateInfo();}
+}
+function showYellow(){
+  document.querySelectorAll('.cell.yellow').forEach(c=>c.classList.remove('yellow'));
+  if(!area)return;
+  document.querySelectorAll('.cell').forEach(c=>{
+    const x=+c.dataset.x, y=+c.dataset.y;
+    if(x>=area.minX&&x<=area.maxX&&y>=area.minY&&y<=area.maxY) c.classList.add('yellow');
+  });
+}
+
+/* ===== 占用 ===== */
+function shapeCells(x,y,s){
+  const c=[];for(let dy=0;dy<s.length;dy++)for(let dx=0;dx<s[0].length;dx++)if(s[dy][dx])c.push(`${x+dx},${y+dy}`);return c;
+}
+function canPlace(x,y,s,ex){
+  if(area)for(let dy=0;dy<s.length;dy++)for(let dx=0;dx<s[0].length;dx++)if(s[dy][dx]){
+    const cx=x+dx,cy=y+dy;if(cx<area.minX||cx>area.maxX||cy<area.minY||cy>area.maxY)return false;
+  }
+  const o=new Set(occupied);
+  if(ex){const os=JSON.parse(ex.dataset.shape),ox=parseInt(ex.style.left)/size,oy=parseInt(ex.style.top)/size;shapeCells(ox,oy,os).forEach(c=>o.delete(c));}
+  const nc=shapeCells(x,y,s);for(let i=0;i<nc.length;i++)if(o.has(nc[i]))return false;return true;
+}
+function addOcc(x,y,s){shapeCells(x,y,s).forEach(c=>occupied.add(c));}
+function remOcc(x,y,s){shapeCells(x,y,s).forEach(c=>occupied.delete(c));}
+
+/* ===== 信息 ===== */
+function updateInfo(){
+  const pieces=grid.querySelectorAll('.piece'), count=pieces.length;
+  document.getElementById('pieceCount').textContent=count;
+  const colors=new Set();pieces.forEach(p=>colors.add(p.dataset.color));
+  document.getElementById('typeCount').textContent=colors.size;
+  if(!area){
+    document.getElementById('totalCells').textContent='—';
+    document.getElementById('coverCount').textContent='0';
+    document.getElementById('coverPct').textContent='—';
+    document.getElementById('progressFill').style.width='0%';
+    document.getElementById('areaLabel').textContent='自由拼图模式 — 拖拽框选创建区域';
+    return;
+  }
+  const total=(area.maxX-area.minX+1)*(area.maxY-area.minY+1);
+  document.getElementById('totalCells').textContent=total;
+  document.getElementById('coverCount').textContent=occupied.size;
+  const pct=total>0?Math.round(occupied.size/total*100):0;
+  document.getElementById('coverPct').textContent=pct+'%';
+  document.getElementById('progressFill').style.width=pct+'%';
+  document.getElementById('areaLabel').textContent=`拼图区域：${area.maxX-area.minX+1} × ${area.maxY-area.minY+1} = ${total} 格（面积概念）`;
+}
+
+/* ===== 形状工具 ===== */
+function rotateShape(s){const h=s.length,w=s[0].length,r=[];for(let x=0;x<w;x++){r[x]=[];for(let y=h-1;y>=0;y--)r[x].push(s[y][x]);}return r;}
+function mirrorShape(s){return s.map(r=>[...r].reverse());}
+function rotN(s,n){let r=s;for(let i=0;i<n%4;i++)r=rotateShape(r);return r;}
+function getShape(base,rot,mirrored){
+  let s=mirrored?mirrorShape(base):base;
+  return rotN(s,rot);
+}
+
+function rebuildDOM(el,s,c){
+  el.querySelectorAll('.box').forEach(b=>b.remove());
+  el.style.gridTemplateRows=`repeat(${s.length},${size}px)`;
+  el.style.gridTemplateColumns=`repeat(${s[0].length},${size}px)`;
+  s.forEach(r=>{r.forEach(v=>{const b=document.createElement('div');b.className='box';b.style.background=v?c:'transparent';el.appendChild(b);});});
+  el.dataset.shape=JSON.stringify(s);
+}
+
+/* ===== 创建零件DOM ===== */
+function makePiece(s,c){
+  const d=document.createElement('div');d.className='piece';
+  d.style.gridTemplateRows=`repeat(${s.length},${size}px)`;
+  d.style.gridTemplateColumns=`repeat(${s[0].length},${size}px)`;
+  d.dataset.shape=JSON.stringify(s);d.dataset.color=c;
+  s.forEach(r=>{r.forEach(v=>{const b=document.createElement('div');b.className='box';b.style.background=v?c:'transparent';if(v){b.style.background=`linear-gradient(135deg,${c},${lighten(c,20)})`;}d.appendChild(b);});});
+  return d;
+}
+
+function makePreview(s,c,sz){
+  sz=sz||22;
+  const d=document.createElement('div');d.className='small';
+  d.style.gridTemplateRows=`repeat(${s.length},${sz}px)`;
+  d.style.gridTemplateColumns=`repeat(${s[0].length},${sz}px)`;
+  s.forEach(r=>{r.forEach(v=>{const b=document.createElement('div');b.style.width=sz+'px';b.style.height=sz+'px';
+    if(v){b.style.background=`linear-gradient(135deg,${c},${lighten(c,20)})`;b.style.borderRadius='4px';b.style.boxShadow=`0 1px 3px ${c}44`;}
+    else{b.style.background='transparent';}
+    d.appendChild(b);});});
+  return d;
+}
+
+/* 颜色提亮 */
+function lighten(hex,pct){
+  hex=hex.replace('#','');
+  let r=parseInt(hex.substr(0,2),16),g=parseInt(hex.substr(2,2),16),b=parseInt(hex.substr(4,2),16);
+  r=Math.min(255,r+Math.round((255-r)*pct/100));
+  g=Math.min(255,g+Math.round((255-g)*pct/100));
+  b=Math.min(255,b+Math.round((255-b)*pct/100));
+  return '#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
+}
+
+/* ===== 零件库渲染 ===== */
+function renderParts(){
+  const el=document.getElementById('parts');el.innerHTML='';
+  DATA.forEach((t,i)=>{
+    const rot=partRotation[i], mir=partMirrored[i];
+    const curS=getShape(t.s,rot,mir);
+
+    const card=document.createElement('div');card.className='part-card';card.style.setProperty('--c',t.c);
+
+    // 名称
+    const nm=document.createElement('div');nm.className='name';
+    nm.textContent=t.name+(mir?' ⬌':'');
+    card.appendChild(nm);
+
+    // 预览
+    const pw=document.createElement('div');pw.className='preview-wrap';
+    pw.appendChild(makePreview(curS,t.c));card.appendChild(pw);
+
+    // 按钮组：旋转 + 镜像
+    const rb=document.createElement('div');rb.className='rot-btns';
+
+    const bRot=document.createElement('button');bRot.className='act-btn';bRot.textContent='↻';
+    bRot.title='顺时针旋转90°';bRot.setAttribute('aria-label','旋转');
+    bRot.onclick=function(e){e.stopPropagation();partRotation[i]=(partRotation[i]+1)%4;renderParts();};
+
+    const bMir=document.createElement('button');bMir.className='act-btn mirror';bMir.textContent='⬌';
+    bMir.title='水平镜像翻转';bMir.setAttribute('aria-label','镜像');
+    if(mir) bMir.style.background='var(--primary)',bMir.style.color='#fff',bMir.style.borderColor='var(--primary)';
+    bMir.onclick=function(e){e.stopPropagation();partMirrored[i]=!partMirrored[i];renderParts();};
+
+    rb.appendChild(bRot);rb.appendChild(bMir);card.appendChild(rb);
+    el.appendChild(card);
+    bindDragOut(pw,i,curS,t.c);
+  });
+}
+
+/* ===== 拖出 ===== */
+function bindDragOut(el,idx,s,c){
+  function sd(cx,cy){
+    if(over)return null;
+    const rect=grid.getBoundingClientRect();
+    const ghost=makePiece(s,c);ghost.classList.add('ghost');grid.appendChild(ghost);
+    function mv(mx,my){
+      const gx=Math.round((mx-rect.left)/size),gy=Math.round((my-rect.top)/size);
+      ghost.style.left=gx*size+'px';ghost.style.top=gy*size+'px';
+      if(!canPlace(gx,gy,s)){ghost.classList.add('invalid');}else{ghost.classList.remove('invalid');}
+    }
+    function en(ex,ey){
+      ghost.remove();
+      const gx=Math.round((ex-rect.left)/size),gy=Math.round((ey-rect.top)/size);
+      if(canPlace(gx,gy,s))placePiece(gx,gy,s,c);
+      else showToast('⚠️ 该位置无法放置');
+    }
+    return{mv,en};
+  }
+  el.onmousedown=function(e){
+    const d=sd(e.clientX,e.clientY);if(!d)return;
+    function m(e){d.mv(e.clientX,e.clientY);}
+    function u(e){document.removeEventListener('mousemove',m);document.removeEventListener('mouseup',u);d.en(e.clientX,e.clientY);}
+    document.addEventListener('mousemove',m);document.addEventListener('mouseup',u);e.preventDefault();
+  };
+  el.addEventListener('touchstart',function(e){
+    if(e.touches.length>1)return;
+    const t=e.touches[0],d=sd(t.clientX,t.clientY);if(!d)return;
+    function m(e){if(e.touches.length>1){cleanup();return;}const t2=e.touches[0];d.mv(t2.clientX,t2.clientY);e.preventDefault();}
+    function u(e){cleanup();const t2=e.changedTouches[0];d.en(t2.clientX,t2.clientY);}
+    function cleanup(){document.removeEventListener('touchmove',m);document.removeEventListener('touchend',u);}
+    document.addEventListener('touchmove',m,{passive:false});document.addEventListener('touchend',u);e.preventDefault();
+  },{passive:false});
+}
+
+/* ===== 放置 ===== */
+function placePiece(x,y,s,c){
+  if(!start)startTimer();
+  saveHistory();
+  addOcc(x,y,s);
+  const p=makePiece(s,c);p.style.left=x*size+'px';p.style.top=y*size+'px';
+  p.classList.add('just-placed');setTimeout(()=>p.classList.remove('just-placed'),250);
+  grid.appendChild(p);bindPieceDrag(p);updateInfo();
+  if(!over){checkWin();if(!over)checkSolvable();}
+}
+
+/* ===== 棋盘内拖动+旋转 ===== */
+function bindPieceDrag(el){
+  el.onmousedown=function(e){
+    if(over||!e.target.classList.contains('box'))return;
+    const rect=grid.getBoundingClientRect(),ox=e.clientX-el.getBoundingClientRect().left,oy=e.clientY-el.getBoundingClientRect().top;
+    const ox0=parseInt(el.style.left)/size,oy0=parseInt(el.style.top)/size;el.classList.add('dragging');
+    function m(e){el.style.left=Math.round((e.clientX-rect.left-ox)/size)*size+'px';el.style.top=Math.round((e.clientY-rect.top-oy)/size)*size+'px';}
+    function u(){document.removeEventListener('mousemove',m);document.removeEventListener('mouseup',u);el.classList.remove('dragging');finishMove(el,ox0,oy0);}
+    document.addEventListener('mousemove',m);document.addEventListener('mouseup',u);e.preventDefault();
+  };
+  el.addEventListener('touchstart',function(e){
+    if(over||e.touches.length>1)return;
+    const t=e.touches[0],rect=grid.getBoundingClientRect(),ox=t.clientX-el.getBoundingClientRect().left,oy=t.clientY-el.getBoundingClientRect().top;
+    const ox0=parseInt(el.style.left)/size,oy0=parseInt(el.style.top)/size;el.classList.add('dragging');
+    function m(e){
+      if(e.touches.length>1){cleanup();el.classList.remove('dragging');el.style.left=ox0*size+'px';el.style.top=oy0*size+'px';return;}
+      const t2=e.touches[0];el.style.left=Math.round((t2.clientX-rect.left-ox)/size)*size+'px';el.style.top=Math.round((t2.clientY-rect.top-oy)/size)*size+'px';e.preventDefault();
+    }
+    function u(){cleanup();el.classList.remove('dragging');finishMove(el,ox0,oy0);}
+    function cleanup(){document.removeEventListener('touchmove',m);document.removeEventListener('touchend',u);}
+    document.addEventListener('touchmove',m,{passive:false});document.addEventListener('touchend',u);e.preventDefault();
+  },{passive:false});
+  el.ondblclick=function(e){if(over)return;rotatePiece(el);e.preventDefault();};
+  let ltap=0;el.addEventListener('touchend',function(e){
+    if(e.touches&&e.touches.length>0)return;const now=Date.now();
+    if(now-ltap<300){if(over)return;rotatePiece(el);ltap=0;}else ltap=now;
+  });
+}
+
+function finishMove(el,ox0,oy0){
+  const s=JSON.parse(el.dataset.shape),x=parseInt(el.style.left)/size,y=parseInt(el.style.top)/size;
+  remOcc(ox0,oy0,s);
+  if(!canPlace(x,y,s,el)){el.style.left=ox0*size+'px';el.style.top=oy0*size+'px';addOcc(ox0,oy0,s);showToast('⚠️ 位置冲突');}
+  else{saveHistory();addOcc(x,y,s);}
+  updateInfo();if(!over){checkWin();if(!over)checkSolvable();}
+}
+
+function rotatePiece(el){
+  const s=JSON.parse(el.dataset.shape),c=el.dataset.color,ns=rotateShape(s);
+  const x=parseInt(el.style.left)/size,y=parseInt(el.style.top)/size;
+  remOcc(x,y,s);
+  if(canPlace(x,y,ns,el)){rebuildDOM(el,ns,c);addOcc(x,y,ns);saveHistory();}
+  else{addOcc(x,y,s);showToast('⚠️ 旋转后无法放置');}
+  updateInfo();if(!over){checkWin();if(!over)checkSolvable();}
+}
+
+/* ===== 历史+撤销 ===== */
+function saveHistory(){
+  const snap=[];grid.querySelectorAll('.piece').forEach(p=>{
+    snap.push({left:p.style.left,top:p.style.top,shape:p.dataset.shape,color:p.dataset.color});
+  });history.push(snap);
+}
+document.getElementById('undo').onclick=function(){
+  if(won){document.getElementById('undoMsg').classList.add('show');return;}
+  if(history.length<1)return;
+  const snap=history.pop();
+  grid.querySelectorAll('.piece').forEach(p=>p.remove());occupied.clear();
+  snap.forEach(d=>{
+    const s=JSON.parse(d.shape);addOcc(parseInt(d.left)/size,parseInt(d.top)/size,s);
+    const p=makePiece(s,d.color);p.style.left=d.left;p.style.top=d.top;
+    grid.appendChild(p);bindPieceDrag(p);
+  });over=false;updateInfo();
+};
+
+/* ===== 胜利 ===== */
+function checkWin(){
+  if(!area)return;
+  const total=(area.maxX-area.minX+1)*(area.maxY-area.minY+1);let num=0;
+  grid.querySelectorAll('.piece').forEach(p=>{
+    const s=JSON.parse(p.dataset.shape),x=parseInt(p.style.left)/size,y=parseInt(p.style.top)/size;
+    s.forEach((r,dy)=>r.forEach((v,dx)=>{if(v){const cx=x+dx,cy=y+dy;if(cx>=area.minX&&cx<=area.maxX&&cy>=area.minY&&cy<=area.maxY)num++;}}));
+  });
+  if(num>=total){
+    stopTime();over=true;won=true;
+    const sec=Math.floor((new Date()-start)/1000);
+    const pc=grid.querySelectorAll('.piece').length;
+    const colors=new Set();grid.querySelectorAll('.piece').forEach(p=>colors.add(p.dataset.color));
+    saveBestTime(sec);
+    document.getElementById('winText').innerHTML=
+      `⏱ 用时 <span class="stat">${sec}秒</span> `+
+      (getBestTime()<=sec?'':`🏆 新纪录！`)+'<br><br>'+
+      `📦 共使用 <span class="stat">${pc}个</span> 零件<br>`+
+      `🎨 使用了 <span class="stat">${colors.size}种</span> 不同零件<br>`+
+      `📐 完全覆盖 ${total} 格区域！`;
+    document.getElementById('winMsg').classList.add('show');
+    launchConfetti();
+  }
+}
+
+/* ===== 计时 ===== */
+function startTimer(){start=new Date();timer=setInterval(()=>{document.getElementById('time').textContent=`⏱ ${Math.floor((new Date()-start)/1000)}秒`;},1000);}
+function stopTime(){clearInterval(timer);}
+function resetTimer(){stopTime();start=null;document.getElementById('time').textContent='⏱ 0秒';}
+
+/* ===== 最佳记录 ===== */
+function getBestTime(){return parseInt(localStorage.getItem('puzzleBest_'+(area?(area.maxX-area.minX+1)+'x'+(area.maxY-area.minY+1):'free')))||Infinity;}
+function saveBestTime(sec){
+  const key='puzzleBest_'+(area?(area.maxX-area.minX+1)+'x'+(area.maxY-area.minY+1):'free');
+  const prev=parseInt(localStorage.getItem(key))||Infinity;
+  if(sec<prev)localStorage.setItem(key,sec);
+  loadBestTime();
+}
+function loadBestTime(){
+  const key='puzzleBest_'+(area?(area.maxX-area.minX+1)+'x'+(area.maxY-area.minY+1):'free');
+  const best=localStorage.getItem(key);
+  const el=document.getElementById('bestTime');
+  if(best){el.textContent=`🏆 最佳: ${best}秒`;el.style.display='inline';}
+  else el.style.display='none';
+}
+
+/* ===== 可解性检测 ===== */
+function getEmptyMask(){
+  if(!area)return null;
+  const w=area.maxX-area.minX+1,h=area.maxY-area.minY+1;let cnt=0;
+  const idx={},bitPos=[];let mask=0;
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+    const gx=area.minX+x,gy=area.minY+y;
+    if(occupied.has(`${gx},${gy}`)){idx[y*w+x]=-1;}
+    else{idx[y*w+x]=cnt;bitPos[cnt]=y*w+x;mask|=(1<<cnt);cnt++;}
+  }
+  return{mask,cnt,w,h,idx,bitPos};
+}
+
+function buildAllShapes(){
+  const out=[],seen={};
+  DATA.forEach(t=>{
+    for(let r=0;r<4;r++){
+      const rs=rotN(t.s,r);
+      const k=rs.map(row=>row.join('')).join('/');
+      if(!seen[k]){seen[k]=1;out.push(rs);}
+    }
+    const ms=mirrorShape(t.s);
+    for(let r=0;r<4;r++){
+      const rs=rotN(ms,r);
+      const k=rs.map(row=>row.join('')).join('/');
+      if(!seen[k]){seen[k]=1;out.push(rs);}
+    }
+  });
+  return out;
+}
+
+function shapeBits(shape,px,py,w,idx){
+  let bits=0;
+  for(let dy=0;dy<shape.length;dy++)for(let dx=0;dx<shape[0].length;dx++)if(shape[dy][dx]){
+    const k=(py+dy)*w+(px+dx),bi=idx[k];if(bi===undefined||bi===-1)return -1;bits|=(1<<bi);
+  }return bits;
+}
+
+function checkSolvable(){
+  if(!area||over)return;
+  const em=getEmptyMask();if(!em)return;
+  if(em.cnt===0)return;
+  if(em.cnt%4!==0){showFail();return;}
+  if(em.cnt>30)return;
+  const shapes=buildAllShapes();
+  if(!solver(em.mask,em.cnt,em.w,em.h,em.idx,em.bitPos,shapes))showFail();
+}
+
+function solver(mask,emptyCnt,w,h,idx,bitPos,shapes){
+  if(mask===0)return true;
+  let first=0,probe=mask;while(!(probe&1)){first++;probe>>=1;}
+  const areaIdx=bitPos[first],fy=Math.floor(areaIdx/w),fx=areaIdx%w;
+  for(let si=0;si<shapes.length;si++){
+    const sh=shapes[si];
+    for(let dy=0;dy<sh.length;dy++)for(let dx=0;dx<sh[dy].length;dx++){
+      if(!sh[dy][dx])continue;
+      const px=fx-dx,py=fy-dy;if(px<0||py<0)continue;
+      if(px+sh[0].length>w||py+sh.length>h)continue;
+      const bits=shapeBits(sh,px,py,w,idx);if(bits===-1)continue;
+      if((mask&bits)!==bits)continue;
+      if(solver(mask&~bits,emptyCnt-4,w,h,idx,bitPos,shapes))return true;
+    }
+  }
+  return false;
+}
+
+function showFail(){over=true;stopTime();document.getElementById('failMsg').classList.add('show');}
+
+/* ===== 庆祝彩带 ===== */
+function launchConfetti(){
+  const canvas=document.getElementById('confetti');const ctx=canvas.getContext('2d');
+  canvas.width=window.innerWidth;canvas.height=window.innerHeight;
+  const pieces=[];const colors=['#4361EE','#F72585','#FFD166','#06D6A0','#FF8C42','#7E57C2','#26A69A'];
+  for(let i=0;i<120;i++){
+    pieces.push({
+      x:Math.random()*canvas.width,y:Math.random()*-canvas.height,
+      w:6+Math.random()*8,h:4+Math.random()*6,
+      color:colors[Math.floor(Math.random()*colors.length)],
+      vx:(Math.random()-0.5)*4,vy:2+Math.random()*4,
+      rot:Math.random()*360,rv:(Math.random()-0.5)*10,
+      life:180+Math.random()*60
+    });
+  }
+  let frame=0;
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    let alive=false;
+    pieces.forEach(p=>{
+      if(p.life<=0)return;alive=true;
+      p.x+=p.vx;p.y+=p.vy;p.vy+=0.08;p.rot+=p.rv;p.life--;
+      ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot*Math.PI/180);
+      ctx.globalAlpha=Math.min(1,p.life/30);
+      ctx.fillStyle=p.color;ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);
+      ctx.restore();
+    });
+    frame++;
+    if(alive&&frame<300)requestAnimationFrame(draw);
+    else ctx.clearRect(0,0,canvas.width,canvas.height);
+  }
+  draw();
+}
+
+/* ===== Toast 提示 ===== */
+let toastTimer=null;
+function showToast(msg){
+  const el=document.getElementById('tooltip');el.textContent=msg;el.classList.add('show');
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),1500);
+}
+
+/* ===== 弹窗控制 ===== */
+function closeMsg(id){document.getElementById(id).classList.remove('show');}
+
+/* ===== 按钮 ===== */
+function setBtn(id){document.querySelectorAll('.top-bar button').forEach(b=>b.classList.remove('active'));const btn=document.getElementById(id);if(btn)btn.classList.add('active');}
+
+document.getElementById('free').onclick=function(){selecting=true;area=null;showYellow();updateInfo();setBtn('free');loadBestTime();};
+document.getElementById('b4').onclick=function(){
+  selecting=false;const rect=grid.getBoundingClientRect();
+  cols=Math.max(6,Math.floor(rect.width/30));rows=Math.max(6,Math.floor(rect.height/30));
+  area={minX:Math.floor(cols/2)-2,maxX:Math.floor(cols/2)+1,minY:Math.floor(rows/2)-2,maxY:Math.floor(rows/2)+1};
+  showYellow();updateInfo();setBtn('b4');loadBestTime();
+};
+document.getElementById('b5').onclick=function(){
+  selecting=false;const rect=grid.getBoundingClientRect();
+  cols=Math.max(6,Math.floor(rect.width/30));rows=Math.max(6,Math.floor(rect.height/30));
+  area={minX:Math.floor(cols/2)-2,maxX:Math.floor(cols/2)+2,minY:Math.floor(rows/2)-2,maxY:Math.floor(rows/2)+1};
+  showYellow();updateInfo();setBtn('b5');loadBestTime();
+};
+document.getElementById('clear').onclick=function(){
+  grid.querySelectorAll('.piece').forEach(p=>p.remove());occupied.clear();history=[];
+  resetTimer();over=false;won=false;updateInfo();showToast('已清空画布');
+};
+</script>
+</body>
+</html>
